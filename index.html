@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoManSucode - 3D Open-World Space Exploration</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <!-- Canvas 3D Container -->
+    <div id="game-container"></div>
+
+    <!-- Efek Visor Helm & Atmosfer -->
+    <div id="atmosphere-overlay"></div>
+    <div id="visor-vignette"></div>
+    <div id="damage-flash"></div>
+
+    <!-- Layar Start / Main Menu -->
+    <div id="start-screen" class="overlay-screen">
+        <div class="menu-box">
+            <div class="badge-version">WEBGL 3D OPEN-WORLD ENGINE v1.0</div>
+            <h1 class="game-title">NO MAN <span>SUCODE</span></h1>
+            <p class="game-subtitle">Eksplorasi Luar Angkasa Prosedural, Pendaratan Planet Tanpa Loading & Otomatisasi Drone</p>
+            
+            <div class="seed-input-group">
+                <label for="galaxy-seed">SEED ALAM SEMESTA:</label>
+                <input type="text" id="galaxy-seed" value="SUCODE-2026" maxlength="20">
+                <button id="btn-random-seed" class="btn-secondary" title="Acak Seed">🎲</button>
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <span class="icon">🚀</span>
+                    <div>
+                        <strong>Seamless Planetary Landing</strong>
+                        <small>Terbang dari luar angkasa dan mendarat langsung di permukaan planet bulat 3D.</small>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <span class="icon">🌍</span>
+                    <div>
+                        <strong>Spherical Gravity & Biomes</strong>
+                        <small>Gravitasi radial 360° di 5 planet unik, sabuk asteroid, dan stasiun angkasa.</small>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <span class="icon">🤖</span>
+                    <div>
+                        <strong>Sucode Drone IDE</strong>
+                        <small>Program logika drone otomatis untuk menambang kristal & sumber daya.</small>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <span class="icon">⚡</span>
+                    <div>
+                        <strong>Terraforming & Base Building</strong>
+                        <small>Tambang elemen dengan Multi-Tool Laser, bangun menara suar, dan upgrade kapal.</small>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-launch-game" class="btn-primary">MULAI EKSPLORASI (LAUNCH)</button>
+            <p class="hint-text">Klik pada layar permainan untuk mengunci kursor mouse (ESC untuk membuka kursor)</p>
+        </div>
+    </div>
+
+    <!-- HUD Utama -->
+    <div id="hud" class="hidden">
+        <!-- Top Bar: Kompas & Info Planet / Sistem -->
+        <div class="hud-top">
+            <div class="system-banner">
+                <div id="hud-location-type" class="tag-mode">DEEP SPACE</div>
+                <div id="hud-location-name" class="location-title">SISTEM HELIOS-ALPHA</div>
+                <div id="hud-biome-info" class="biome-subtitle">Ruang Hampa • 0.0G • Suhu -270°C</div>
+            </div>
+            <div class="compass-bar">
+                <div id="hud-target-indicator">🎯 Pilih / Arahkan ke Planet untuk Pindai</div>
+            </div>
+            <div class="top-right-stats">
+                <div class="stat-pill"><span>SEED:</span> <strong id="hud-seed">SUCODE-2026</strong></div>
+                <div class="stat-pill"><span>FPS:</span> <strong id="hud-fps">60</strong></div>
+                <div class="stat-pill"><span>DRONE AKTIF:</span> <strong id="hud-drone-count">0</strong></div>
+            </div>
+        </div>
+
+        <!-- Notifikasi Discovery Planet Baru -->
+        <div id="discovery-banner" class="hidden">
+            <div class="discovery-line"></div>
+            <div class="discovery-sub">PLANET DITEMUKAN / MEMASUKI ATMOSFER</div>
+            <div id="discovery-title" class="discovery-main">TERRA-PRIME</div>
+            <div id="discovery-desc" class="discovery-meta">Bioma Tropis Alien • Bahaya Rendah</div>
+            <div class="discovery-line"></div>
+        </div>
+
+        <!-- Crosshair & Reticle Tengah -->
+        <div id="crosshair-container">
+            <div id="crosshair-ship" class="crosshair">
+                <div class="reticle-outer"></div>
+                <div class="reticle-dot"></div>
+            </div>
+            <div id="crosshair-foot" class="crosshair hidden">
+                <div class="reticle-circle"></div>
+                <div class="reticle-dot"></div>
+            </div>
+            <div id="target-lock-box" class="hidden"></div>
+            <div id="interaction-prompt" class="hidden">[E] Mendarat di Permukaan</div>
+            <div id="mining-progress-wrap" class="hidden">
+                <div id="mining-target-label">Kristal Karbon</div>
+                <div class="progress-bar-bg"><div id="mining-progress-fill"></div></div>
+            </div>
+        </div>
+
+        <!-- Panel Kiri Bawah: Status Eksosuit & Kapal -->
+        <div class="hud-bottom-left">
+            <div class="status-card">
+                <div class="mode-badge" id="hud-player-mode">🚀 MODE PESAWAT (STARSHIP)</div>
+                
+                <div class="bar-row">
+                    <span class="bar-label">🛡️ PERISAI / HEALTH</span>
+                    <div class="bar-track"><div id="bar-shield" class="bar-fill fill-cyan" style="width:100%"></div></div>
+                    <span id="val-shield" class="bar-val">100%</span>
+                </div>
+
+                <div class="bar-row">
+                    <span class="bar-label" id="label-energy">⚡ BAHAN BAKAR THRUSTER</span>
+                    <div class="bar-track"><div id="bar-energy" class="bar-fill fill-amber" style="width:100%"></div></div>
+                    <span id="val-energy" class="bar-val">100%</span>
+                </div>
+
+                <div class="bar-row">
+                    <span class="bar-label">☣️ PELINDUNG CUACA</span>
+                    <div class="bar-track"><div id="bar-hazard" class="bar-fill fill-green" style="width:100%"></div></div>
+                    <span id="val-hazard" class="bar-val">100%</span>
+                </div>
+            </div>
+
+            <!-- Panel Sumber Daya (Resources) -->
+            <div class="resource-strip">
+                <div class="res-item" title="Ferrite Dust (Batu/Logam)">
+                    <span class="res-dot dot-ferrite"></span> Ferrite: <strong id="res-ferrite">50</strong>
+                </div>
+                <div class="res-item" title="Carbon (Flora/Organik)">
+                    <span class="res-dot dot-carbon"></span> Carbon: <strong id="res-carbon">50</strong>
+                </div>
+                <div class="res-item" title="Cobalt Crystal (Energi)">
+                    <span class="res-dot dot-cobalt"></span> Cobalt: <strong id="res-cobalt">25</strong>
+                </div>
+                <div class="res-item" title="Sucode Shard (Inti Pemrograman)">
+                    <span class="res-dot dot-sucode"></span> Sucode: <strong id="res-sucode">15</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Tengah Bawah: Telemetry & Action Buttons -->
+        <div class="hud-bottom-center">
+            <div class="telemetry-box">
+                <div class="tele-item">
+                    <small>KECEPATAN</small>
+                    <strong id="hud-speed">0 u/s</strong>
+                </div>
+                <div class="tele-item">
+                    <small>KETINGGIAN PLANET</small>
+                    <strong id="hud-altitude">LUAR ANGKASA</strong>
+                </div>
+                <div class="tele-item">
+                    <small>JARAK PESAWAT</small>
+                    <strong id="hud-ship-dist">DI KOKPIT</strong>
+                </div>
+            </div>
+            <div class="quick-actions">
+                <button class="action-btn" onclick="window.GameUI.toggleModal('modal-sucode')"><span>[C]</span> Sucode IDE</button>
+                <button class="action-btn" onclick="window.GameUI.toggleModal('modal-upgrade')"><span>[I]</span> Upgrade & Craft</button>
+                <button class="action-btn" onclick="window.Game.triggerScan()"><span>[Q]</span> Radar Scan</button>
+                <button class="action-btn" onclick="window.Game.buildBeacon()"><span>[B]</span> Bangun Markas</button>
+                <button class="action-btn" onclick="window.Game.toggleCameraView()"><span>[V]</span> Kamera (1st/3rd)</button>
+            </div>
+        </div>
+
+        <!-- Panel Kanan Bawah: Panduan Kontrol Dinamis & Log -->
+        <div class="hud-bottom-right">
+            <div id="activity-log" class="activity-log"></div>
+            <div class="controls-card" id="controls-ship">
+                <div class="card-header">KONTROL PESAWAT ANTARIKSA</div>
+                <ul>
+                    <li><kbd>W</kbd> / <kbd>S</kbd> Gas / Rem Mesin</li>
+                    <li><kbd>SHIFT</kbd> Pulse Warp Boost</li>
+                    <li><kbd>Mouse</kbd> Kemudi Arah Terbang</li>
+                    <li><kbd>A</kbd> / <kbd>D</kbd> Roll / Belok Kiri-Kanan</li>
+                    <li><kbd>Klik Kiri</kbd> Tembak Meriam Foton</li>
+                    <li><kbd>E</kbd> <strong>Mendarat di Planet</strong> (Saat Dekat)</li>
+                </ul>
+            </div>
+            <div class="controls-card hidden" id="controls-foot">
+                <div class="card-header">KONTROL DARAT (GRAVITASI PLANET)</div>
+                <ul>
+                    <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Jalan di Permukaan Bola</li>
+                    <li><kbd>SPACE</kbd> (Tahan) Terbang Jetpack</li>
+                    <li><kbd>Klik Kiri</kbd> Laser Tambang Multi-Tool</li>
+                    <li><kbd>Q</kbd> Pindai Sumber Daya & <kbd>B</kbd> Bangun Pos</li>
+                    <li><kbd>C</kbd> Program Drone Otomatis (Sucode)</li>
+                    <li><kbd>E</kbd> Masuk Pesawat / <kbd>X</kbd> Panggil Pesawat</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: SUCODE VISUAL & SCRIPT IDE -->
+    <div id="modal-sucode" class="modal-backdrop hidden">
+        <div class="modal-window modal-large">
+            <div class="modal-header">
+                <div>
+                    <h2>💻 TERMINAL PEMROGRAMAN DRONE "SUCODE" v2.4</h2>
+                    <p>Rakit algoritma otomatis untuk Drone Penambang di planet maupun sabuk asteroid</p>
+                </div>
+                <button class="btn-close" onclick="window.GameUI.closeAllModals()">✕</button>
+            </div>
+            <div class="modal-body sucode-layout">
+                <div class="sucode-sidebar">
+                    <h3>Blok Perintah Cepat</h3>
+                    <p class="small-muted">Klik blok untuk menyisipkan instruksi ke editor Sucode:</p>
+                    <div class="block-list">
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('SCAN_TARGET("ALL")')">🔍 SCAN_TARGET("ALL")</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('SCAN_TARGET("SUCODE")')">💎 SCAN_TARGET("SUCODE")</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('SCAN_TARGET("COBALT")')">🔷 SCAN_TARGET("COBALT")</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('SCAN_TARGET("FERRITE")')">🪨 SCAN_TARGET("FERRITE")</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('SCAN_TARGET("CARBON")')">🌿 SCAN_TARGET("CARBON")</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('MOVE_TO_TARGET(1.5)')">🚀 MOVE_TO_TARGET(speed)</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('FIRE_MINING_LASER()')">⚡ FIRE_MINING_LASER()</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('IF_FULL_TRANSFER_TO_PLAYER()')">📦 IF_FULL_TRANSFER_TO_PLAYER()</button>
+                        <button class="code-block-btn" onclick="window.SucodeSystem.insertLine('RECHARGE_PLAYER_SHIELD()')">🛡️ RECHARGE_PLAYER_SHIELD()</button>
+                    </div>
+
+                    <div class="cost-box">
+                        <strong>Biaya Rakit 1 Unit Drone:</strong>
+                        <div>🪨 20 Ferrite &nbsp;|&nbsp; 💎 5 Sucode</div>
+                    </div>
+                </div>
+
+                <div class="sucode-editor-area">
+                    <div class="editor-toolbar">
+                        <span>FILE: <code>drone_autonomy.sucode</code></span>
+                        <div class="preset-btns">
+                            <button class="btn-tiny" onclick="window.SucodeSystem.loadPreset('miner')">Preset: Penambang Semua</button>
+                            <button class="btn-tiny" onclick="window.SucodeSystem.loadPreset('shard')">Preset: Pemburu Sucode</button>
+                            <button class="btn-tiny" onclick="window.SucodeSystem.loadPreset('guardian')">Preset: Drone Pelindung</button>
+                        </div>
+                    </div>
+                    <textarea id="sucode-textarea" spellcheck="false">// Program Otomatisasi Drone NoManSucode
+// Dieksekusi setiap siklus tick oleh AI Drone
+
+LOOP_START()
+  SCAN_TARGET("ALL")
+  MOVE_TO_TARGET(1.2)
+  FIRE_MINING_LASER()
+  IF_FULL_TRANSFER_TO_PLAYER()
+  RECHARGE_PLAYER_SHIELD()
+LOOP_END()</textarea>
+
+                    <div id="sucode-console" class="sucode-console">
+                        [SUCODE OS] Siap mengompilasi instruksi ke unit Drone otonom...
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="btn-secondary" onclick="window.SucodeSystem.updateActiveDrones()">🔄 Update Kode Drone Aktif (Gratis)</button>
+                        <button class="btn-primary" onclick="window.SucodeSystem.deployNewDrone()">🤖 Rakit & Luncurkan Drone Baru</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: UPGRADE, CRAFTING & TELEPORTASI -->
+    <div id="modal-upgrade" class="modal-backdrop hidden">
+        <div class="modal-window">
+            <div class="modal-header">
+                <div>
+                    <h2>⚙️ REKAYASA EKSOSUIT, PESAWAT & NAVIGASI</h2>
+                    <p>Gunakan sumber daya hasil tambang untuk meningkatkan teknologi penjelajahan</p>
+                </div>
+                <button class="btn-close" onclick="window.GameUI.closeAllModals()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="upgrade-grid">
+                    <div class="upgrade-card">
+                        <h4>⚡ Tingkatkan Laser Multi-Tool (<span id="lvl-laser">Lv.1</span>)</h4>
+                        <p>Mempercepat penambangan batu, kristal, dan asteroid sebesar +40%.</p>
+                        <div class="cost-tag">Biaya: 30 Ferrite, 15 Cobalt</div>
+                        <button class="btn-primary btn-full" onclick="window.Game.buyUpgrade('laser')">Upgrade Laser</button>
+                    </div>
+
+                    <div class="upgrade-card">
+                        <h4>🚀 Mesin Hyperdrive Kapal (<span id="lvl-engine">Lv.1</span>)</h4>
+                        <p>Meningkatkan kecepatan terbang maksimum & efisiensi Pulse Boost.</p>
+                        <div class="cost-tag">Biaya: 30 Carbon, 20 Cobalt</div>
+                        <button class="btn-primary btn-full" onclick="window.Game.buyUpgrade('engine')">Upgrade Mesin</button>
+                    </div>
+
+                    <div class="upgrade-card">
+                        <h4>🛡️ Perisai Termal & Eksosuit (<span id="lvl-shield">Lv.1</span>)</h4>
+                        <p>Mengurangi kerusakan cuaca ekstrem planet & mengisi ulang semua energi.</p>
+                        <div class="cost-tag">Biaya: 25 Ferrite, 25 Carbon</div>
+                        <button class="btn-primary btn-full" onclick="window.Game.buyUpgrade('shield')">Upgrade & Isi Energi</button>
+                    </div>
+
+                    <div class="upgrade-card">
+                        <h4>🏗️ Bangun Menara Koloni & Teleporter</h4>
+                        <p>Membangun struktur kubah markas permanen di posisi Anda saat ini di planet.</p>
+                        <div class="cost-tag">Biaya: 40 Ferrite, 10 Sucode</div>
+                        <button class="btn-primary btn-full" onclick="window.Game.buildBeacon()">Bangun Markas</button>
+                    </div>
+                </div>
+
+                <h3 style="margin-top:20px; margin-bottom:10px; color:#38bdf8;">🌌 Peta Radar Sistem Bintang (Auto-Pilot Target)</h3>
+                <div id="planet-directory" class="planet-directory"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Urutan Script Modular (Tanpa CORS Module Error sehingga bisa langsung klik 2x index.html) -->
+    <script src="js/math_noise.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/universe.js"></script>
+    <script src="js/sucode.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
